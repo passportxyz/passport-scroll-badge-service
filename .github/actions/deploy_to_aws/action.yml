@@ -14,7 +14,7 @@ inputs:
     type: string
     default: up
   pulumi_diff:
-    default: false
+    default: 'false'
   PULUMI_ACCESS_TOKEN:
     required: true
   AWS_ACCESS_KEY_ID:
