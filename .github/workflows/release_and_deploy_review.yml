@@ -105,9 +105,58 @@ jobs:
     outputs:
       docker_tag: ${{ steps.sha.outputs.sha_short }}
 
-  deploy_backends:
+  deploy_preview:
     name: Deploying AWS Infra
     needs: [ref, docker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.ref.outputs.refspec }}
+          fetch-depth: 0
+      - name: Load secret
+        id: op-load-secret
+        uses: 1password/load-secrets-action@v1
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-revie-secrets/service/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-revie-secrets/service/AWS_SECRET_ACCESS_KEY
+          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-revie-secrets/service/PULUMI_ACCESS_TOKEN
+          ROUTE_53_DOMAIN: op://DevOps/passport-scroll-badge-service-revie-env/service/ROUTE_53_DOMAIN
+          SCROLL_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-revie-env/service/SCROLL_SECRETS_ARN
+          VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-revie-env/service/VC_SECRETS_ARN
+      - name: Prepare to Deploy to AWS
+        uses: ./.github/actions/prepare_deploy_to_aws
+      - name: Deploy Review
+        uses: ./.github/actions/deploy_to_aws
+        with:
+          docker_tag: ${{ needs.docker.outputs.docker_tag }}
+          stack_name: gitcoin/scroll-badge-service/review
+          aws_region: us-west-2
+          pulumi_command: preview
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
+          ROUTE_53_DOMAIN: ${{ env.ROUTE_53_DOMAIN }}
+          SCROLL_SECRETS_ARN: ${{ env.SCROLL_SECRETS_ARN }}
+          VC_SECRETS_ARN: ${{ env.VC_SECRETS_ARN }}
+
+  deploy_confirm:
+    name: Review Approval Pending
+    needs: [ref, deploy_preview]
+    runs-on: ubuntu-latest
+    environment: review
+    steps:
+      - name: Approve Release to Review (check pulumi preview)
+        run: |
+          echo "Ref" ${{ needs.ref.outputs.refspec }}
+          
+  deploy_backends:
+    name: Deploying AWS Infra
+    needs: [ref, docker, deploy_preview, deploy_confirm]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
