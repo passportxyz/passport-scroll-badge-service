@@ -37,7 +37,7 @@ runs:
       working-directory: infra/aws
       env:
         PULUMI_ACCESS_TOKEN: ${{ inputs.PULUMI_ACCESS_TOKEN }}
-    - uses: pulumi/actions@v3
+    - uses: pulumi/actions@v5
       id: pulumi
       with:
         command: ${{ inputs.pulumi_command }}

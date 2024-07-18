@@ -35,7 +35,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          ref: ${{ needs.ref.outputs.refspec }}
+          ref: ${{ steps.ref.outputs.refspec }}
           fetch-depth: 0
 
       - name: Store Commit SHA
