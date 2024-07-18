@@ -1,7 +1,7 @@
-name: Deploy to Review
+name: Library - Release and Deploy
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       commit:
         description: "Leave blank to use current HEAD, or provide an override commit SHA"
@@ -10,23 +10,135 @@ on:
     secrets:
       PULUMI_ACCESS_TOKEN:
         required: true
-      AWS_ACCESS_KEY_ID_REVIEW:
-        required: true
-      AWS_SECRET_ACCESS_KEY_REVIEW:
-        required: true
-      ROUTE_53_DOMAIN_REVIEW:
-        required: true
-      SCROLL_SECRETS_ARN_REVIEW:
-        required: true
-      VC_SECRETS_ARN_REVIEW:
-        required: true
 
 jobs:
-  deploy:
-    name: Deploy
-    uses: ./.github/workflows/release_and_deploy_generic.yml
-    with:
-      commit: ${{ inputs.commit }}
-      deploy_review: true
-      create_release: false
-    secrets: inherit
+  ref:
+    name: Load Commit Ref
+    runs-on: ubuntu-latest
+    steps:
+      - id: ref
+        shell: bash
+        # Default to HEAD of the branch from
+        # which this workflow was triggered
+        run: |
+          echo "refspec=${{ inputs.commit || github.sha }}" >> $GITHUB_OUTPUT
+    outputs:
+      refspec: ${{ steps.ref.outputs.refspec }}
+
+  test_and_draft_release:
+    name: Test and Draft Release
+    needs: [ref]
+    permissions: write-all
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.ref.outputs.refspec }}
+          fetch-depth: 0
+
+      - name: Version
+        # https://github.com/marketplace/actions/git-semantic-version
+        id: version
+        uses: paulhatch/semantic-version@v5.0.2
+        with:
+          tag_prefix: "v"
+          major_pattern: "(MAJOR)"
+          minor_pattern: "(MINOR)"
+
+      - name: Draft Release
+        if: ${{ inputs.create_release }}
+        # https://github.com/ncipollo/release-action
+        uses: ncipollo/release-action@v1
+        with:
+          generateReleaseNotes: true
+          allowUpdates: true
+          token: ${{ secrets.github_token }}
+          tag: ${{ steps.version.outputs.version_tag }}
+          commit: ${{ needs.ref.outputs.refspec }}
+          draft: true
+
+    outputs:
+      version_tag: ${{ steps.version.outputs.version_tag }}
+
+  docker:
+    name: Docker
+    needs: [ref, test_and_draft_release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.ref.outputs.refspec }}
+          fetch-depth: 0
+
+      - name: Store Commit SHA
+        id: sha
+        shell: bash
+        run: |
+          echo "sha_short=$(git rev-parse --short ${{ needs.ref.outputs.refspec }})" >> $GITHUB_OUTPUT
+      - name: Load secret
+        id: op-load-secret
+        uses: 1password/load-secrets-action@v1
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-revie-secrets/service/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-revie-secrets/service/AWS_SECRET_ACCESS_KEY
+      - name: Docker Build
+        uses: ./.github/actions/docker_build
+        with:
+          docker_tag: ${{ steps.sha.outputs.sha_short }}
+          ecr_repository_name: scroll-badge-service
+          dockerfile_name: Dockerfile
+          build_dir: ./
+      - name: Docker Push to Review
+        uses: ./.github/actions/docker_deploy
+        with:
+          docker_tag: ${{ steps.sha.outputs.sha_short }}
+          ecr_repository_name: scroll-badge-service
+          aws_region: us-west-2
+          aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+
+    outputs:
+      docker_tag: ${{ steps.sha.outputs.sha_short }}
+
+  deploy_backends:
+    name: Deploying AWS Infra
+    needs: [ref, docker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.ref.outputs.refspec }}
+          fetch-depth: 0
+      - name: Load secret
+        id: op-load-secret
+        uses: 1password/load-secrets-action@v1
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-revie-secrets/service/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-revie-secrets/service/AWS_SECRET_ACCESS_KEY
+          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-revie-secrets/service/PULUMI_ACCESS_TOKEN
+          ROUTE_53_DOMAIN: op://DevOps/passport-scroll-badge-service-revie-env/service/ROUTE_53_DOMAIN
+          SCROLL_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-revie-env/service/SCROLL_SECRETS_ARN
+          VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-revie-env/service/VC_SECRETS_ARN
+      - name: Prepare to Deploy to AWS
+        uses: ./.github/actions/prepare_deploy_to_aws
+      - name: Deploy Review
+        uses: ./.github/actions/deploy_to_aws
+        with:
+          docker_tag: ${{ needs.docker.outputs.docker_tag }}
+          stack_name: gitcoin/scroll-badge-service/review
+          aws_region: us-west-2
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
+          ROUTE_53_DOMAIN: ${{ env.ROUTE_53_DOMAIN }}
+          SCROLL_SECRETS_ARN: ${{ env.SCROLL_SECRETS_ARN }}
+          VC_SECRETS_ARN: ${{ env.VC_SECRETS_ARN }}
