@@ -10,6 +10,9 @@ inputs:
   aws_region:
     required: true
     type: string
+  pulumi_command:
+    type: string
+    default: up
   PULUMI_ACCESS_TOKEN:
     required: true
   AWS_ACCESS_KEY_ID:
@@ -35,7 +38,7 @@ runs:
     - uses: pulumi/actions@v3
       id: pulumi
       with:
-        command: up
+        command: ${{ inputs.pulumi_command }}
         stack-name: ${{ inputs.stack_name }}
         upsert: false
         work-dir: infra/aws

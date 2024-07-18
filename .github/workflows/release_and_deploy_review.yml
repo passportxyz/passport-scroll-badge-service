@@ -106,7 +106,7 @@ jobs:
       docker_tag: ${{ steps.sha.outputs.sha_short }}
 
   deploy_preview:
-    name: Deploying AWS Infra
+    name: Preview - Deploying AWS Infra
     needs: [ref, docker]
     runs-on: ubuntu-latest
     steps:
