@@ -46,68 +46,19 @@ jobs:
           major_pattern: "(MAJOR)"
           minor_pattern: "(MINOR)"
 
-      - name: Draft Release
-        if: ${{ inputs.create_release }}
-        # https://github.com/ncipollo/release-action
-        uses: ncipollo/release-action@v1
-        with:
-          generateReleaseNotes: true
-          allowUpdates: true
-          token: ${{ secrets.github_token }}
-          tag: ${{ steps.version.outputs.version_tag }}
-          commit: ${{ needs.ref.outputs.refspec }}
-          draft: true
-
-    outputs:
-      version_tag: ${{ steps.version.outputs.version_tag }}
-
-  docker:
-    name: Docker
-    needs: [ref, test_and_draft_release]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ needs.ref.outputs.refspec }}
-          fetch-depth: 0
-
       - name: Store Commit SHA
         id: sha
         shell: bash
         run: |
           echo "sha_short=$(git rev-parse --short ${{ needs.ref.outputs.refspec }})" >> $GITHUB_OUTPUT
-      - name: Load secret
-        id: op-load-secret
-        uses: 1password/load-secrets-action@v1
-        with:
-          export-env: true
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-revie-secrets/service/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-revie-secrets/service/AWS_SECRET_ACCESS_KEY
-      - name: Docker Build
-        uses: ./.github/actions/docker_build
-        with:
-          docker_tag: ${{ steps.sha.outputs.sha_short }}
-          ecr_repository_name: scroll-badge-service
-          dockerfile_name: Dockerfile
-          build_dir: ./
-      - name: Docker Push to Review
-        uses: ./.github/actions/docker_deploy
-        with:
-          docker_tag: ${{ steps.sha.outputs.sha_short }}
-          ecr_repository_name: scroll-badge-service
-          aws_region: us-west-2
-          aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
 
     outputs:
+      version_tag: ${{ steps.version.outputs.version_tag }}
       docker_tag: ${{ steps.sha.outputs.sha_short }}
 
   deploy_preview:
     name: Preview - Deploying AWS Infra
-    needs: [ref, docker]
+    needs: [ref]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -122,18 +73,18 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-revie-secrets/service/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-revie-secrets/service/AWS_SECRET_ACCESS_KEY
-          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-revie-secrets/service/PULUMI_ACCESS_TOKEN
-          ROUTE_53_DOMAIN: op://DevOps/passport-scroll-badge-service-revie-env/service/ROUTE_53_DOMAIN
-          SCROLL_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-revie-env/service/SCROLL_SECRETS_ARN
-          VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-revie-env/service/VC_SECRETS_ARN
+          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-review-secrets/service/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-review-secrets/service/AWS_SECRET_ACCESS_KEY
+          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-review-secrets/service/PULUMI_ACCESS_TOKEN
+          ROUTE_53_DOMAIN: op://DevOps/passport-scroll-badge-service-review-env/service/ROUTE_53_DOMAIN
+          SCROLL_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-review-env/service/SCROLL_SECRETS_ARN
+          VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-review-env/service/VC_SECRETS_ARN
       - name: Prepare to Deploy to AWS
         uses: ./.github/actions/prepare_deploy_to_aws
       - name: Deploy Review
         uses: ./.github/actions/deploy_to_aws
         with:
-          docker_tag: ${{ needs.docker.outputs.docker_tag }}
+          docker_tag: ${{ needs.ref.outputs.docker_tag }}
           stack_name: gitcoin/scroll-badge-service/review
           aws_region: us-west-2
           pulumi_command: preview
@@ -153,10 +104,10 @@ jobs:
       - name: Approve Release to Review (check pulumi preview)
         run: |
           echo "Ref" ${{ needs.ref.outputs.refspec }}
-          
+
   deploy_backends:
     name: Deploying AWS Infra
-    needs: [ref, docker, deploy_preview, deploy_confirm]
+    needs: [ref, deploy_preview, deploy_confirm]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -171,12 +122,12 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-revie-secrets/service/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-revie-secrets/service/AWS_SECRET_ACCESS_KEY
-          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-revie-secrets/service/PULUMI_ACCESS_TOKEN
-          ROUTE_53_DOMAIN: op://DevOps/passport-scroll-badge-service-revie-env/service/ROUTE_53_DOMAIN
-          SCROLL_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-revie-env/service/SCROLL_SECRETS_ARN
-          VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-revie-env/service/VC_SECRETS_ARN
+          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-review-secrets/service/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-review-secrets/service/AWS_SECRET_ACCESS_KEY
+          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-review-secrets/service/PULUMI_ACCESS_TOKEN
+          ROUTE_53_DOMAIN: op://DevOps/passport-scroll-badge-service-review-env/service/ROUTE_53_DOMAIN
+          SCROLL_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-review-env/service/SCROLL_SECRETS_ARN
+          VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-review-env/service/VC_SECRETS_ARN
       - name: Prepare to Deploy to AWS
         uses: ./.github/actions/prepare_deploy_to_aws
       - name: Deploy Review
