@@ -22,20 +22,6 @@ jobs:
         # which this workflow was triggered
         run: |
           echo "refspec=${{ inputs.commit || github.sha }}" >> $GITHUB_OUTPUT
-    outputs:
-      refspec: ${{ steps.ref.outputs.refspec }}
-
-  test_and_draft_release:
-    name: Test and Draft Release
-    needs: [ref]
-    permissions: write-all
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ needs.ref.outputs.refspec }}
-          fetch-depth: 0
 
       - name: Version
         # https://github.com/marketplace/actions/git-semantic-version
@@ -55,6 +41,7 @@ jobs:
     outputs:
       version_tag: ${{ steps.version.outputs.version_tag }}
       docker_tag: ${{ steps.sha.outputs.sha_short }}
+      refspec: ${{ steps.ref.outputs.refspec }}
 
   deploy_preview:
     name: Preview - Deploying AWS Infra
@@ -81,13 +68,14 @@ jobs:
           VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-review-env/service/VC_SECRETS_ARN
       - name: Prepare to Deploy to AWS
         uses: ./.github/actions/prepare_deploy_to_aws
-      - name: Deploy Review
+      - name: Preview Deploy
         uses: ./.github/actions/deploy_to_aws
         with:
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
           stack_name: gitcoin/scroll-badge-service/review
           aws_region: us-west-2
           pulumi_command: preview
+          pulumi_diff: true
           AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}

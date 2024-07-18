@@ -13,6 +13,8 @@ inputs:
   pulumi_command:
     type: string
     default: up
+  pulumi_diff:
+    default: false
   PULUMI_ACCESS_TOKEN:
     required: true
   AWS_ACCESS_KEY_ID:
@@ -39,6 +41,7 @@ runs:
       id: pulumi
       with:
         command: ${{ inputs.pulumi_command }}
+        diff: ${{ inputs.pulumi_diff }}
         stack-name: ${{ inputs.stack_name }}
         upsert: false
         work-dir: infra/aws
