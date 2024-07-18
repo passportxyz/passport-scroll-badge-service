@@ -156,6 +156,8 @@ export const getAttestations = async (
   attester: string,
   easScanUrl: string
 ): Promise<Attestation[]> => {
+  // We want to check the last 90 days of attestations
+  const since = Math.ceil(Date.now() / 1000 - 90 * 24 * 3600);
   const query = `
     query {
       attestations(
@@ -172,6 +174,10 @@ export const getAttestations = async (
             equals: "${PASSPORT_SCORE_SCHEMA_UID}"
             mode: insensitive
           }
+          revoked: {equals: false}
+          revocationTime: {equals: 0}
+          expirationTime: {equals: 0}
+          timeCreated: {gte: ${since}}
         }
         orderBy: [{ timeCreated: desc }]
       ) {
@@ -199,7 +205,7 @@ export const getAttestations = async (
   return result?.data?.data?.attestations || [];
 };
 
-export function getPassingScore(attestations: Attestation[]): number | null {
+export function getMaxScore(attestations: Attestation[]): number | null {
   const schemaId = PASSPORT_SCORE_SCHEMA_UID;
   const validAttestation = attestations.find(
     (attestation) =>
@@ -213,28 +219,36 @@ export function getPassingScore(attestations: Attestation[]): number | null {
     return null;
   }
 
-  try {
-    const decodedData = JSON.parse(
-      validAttestation.decodedDataJson
-    ) as ScoreAttestation[];
-    const scoreData = decodedData.find((item) => item.name === "score");
-    const scoreDecimalsData = decodedData.find(
-      (item) => item.name === "score_decimals"
-    );
+  let maxScore = null;
+  for (let i = 0; i < attestations.length; i++) {
+    const attestation = attestations[i];
 
-    if (scoreData?.value?.value?.hex && scoreDecimalsData?.value?.value) {
-      const score = Number(BigInt(scoreData.value.value.hex));
-      const decimals = Number(scoreDecimalsData.value.value);
-      const ret = Number(score) / 10 ** decimals;
-      if (ret >= SCORE_THRESHOLD) {
-        return ret;
+    try {
+      const decodedData = JSON.parse(
+        attestation.decodedDataJson
+      ) as ScoreAttestation[];
+      const scoreData = decodedData.find((item) => item.name === "score");
+      const scoreDecimalsData = decodedData.find(
+        (item) => item.name === "score_decimals"
+      );
+
+      if (scoreData?.value?.value?.hex && scoreDecimalsData?.value?.value) {
+        let score = Number(BigInt(scoreData.value.value.hex));
+        const decimals = Number(scoreDecimalsData.value.value);
+        score = Number(score) / 10 ** decimals;
+        if (maxScore === null || score > maxScore) {
+          maxScore = score;
+        }
       }
+    } catch (error) {
+      console.error(
+        "Error parsing score from attestation, attestation will be skipped:",
+        error
+      );
     }
-  } catch (error) {
-    console.error("Error parsing score from attestation:", error);
   }
 
-  return null;
+  return maxScore;
 }
 
 // return a JSON error response with a 400 status
@@ -275,7 +289,7 @@ app.get("/scroll/check", async (req: Request, res: Response): Promise<void> => {
       PASSPORT_SCORE_ATTESTER_CONTRACT_ADDRESS,
       SCROLL_EAS_SCAN_URL
     );
-    const score = getPassingScore(attestations);
+    const score = getMaxScore(attestations);
 
     const eligibility = score !== null;
     return void res.json({
@@ -309,7 +323,7 @@ app.get("/scroll/claim", async (req: Request, res: Response): Promise<void> => {
     PASSPORT_SCORE_ATTESTER_CONTRACT_ADDRESS,
     SCROLL_EAS_SCAN_URL
   );
-  const score = getPassingScore(attestations);
+  const score = getMaxScore(attestations);
 
   const eligibility = score !== null;
   if (!eligibility)
