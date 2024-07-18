@@ -51,6 +51,7 @@ const ATTESTER_PROXY_ADDRESS: string = `${process.env.ATTESTER_PROXY_ADDRESS}`;
 const port = process.env.SERVICE_PORT || 80;
 
 const SCROLL_BADGE_SCHEMA = "address badge, bytes payload";
+const SCORE_THRESHOLD = 20;
 
 export type Attestation = {
   recipient: string;
@@ -198,9 +199,7 @@ export const getAttestations = async (
   return result?.data?.data?.attestations || [];
 };
 
-export function parseScoreFromAttestation(
-  attestations: Attestation[]
-): number | null {
+export function getPassingScore(attestations: Attestation[]): number | null {
   const schemaId = PASSPORT_SCORE_SCHEMA_UID;
   const validAttestation = attestations.find(
     (attestation) =>
@@ -226,7 +225,10 @@ export function parseScoreFromAttestation(
     if (scoreData?.value?.value?.hex && scoreDecimalsData?.value?.value) {
       const score = Number(BigInt(scoreData.value.value.hex));
       const decimals = Number(scoreDecimalsData.value.value);
-      return Number(score) / 10 ** decimals;
+      const ret = Number(score) / 10 ** decimals;
+      if (ret >= SCORE_THRESHOLD) {
+        return ret;
+      }
     }
   } catch (error) {
     console.error("Error parsing score from attestation:", error);
@@ -273,9 +275,9 @@ app.get("/scroll/check", async (req: Request, res: Response): Promise<void> => {
       PASSPORT_SCORE_ATTESTER_CONTRACT_ADDRESS,
       SCROLL_EAS_SCAN_URL
     );
-    const score = parseScoreFromAttestation(attestations);
+    const score = getPassingScore(attestations);
 
-    const eligibility = Boolean(score && score >= 20);
+    const eligibility = score !== null;
     return void res.json({
       code: eligibility ? 1 : 0,
       message: eligibility
@@ -307,9 +309,9 @@ app.get("/scroll/claim", async (req: Request, res: Response): Promise<void> => {
     PASSPORT_SCORE_ATTESTER_CONTRACT_ADDRESS,
     SCROLL_EAS_SCAN_URL
   );
-  const score = parseScoreFromAttestation(attestations);
+  const score = getPassingScore(attestations);
 
-  const eligibility = score && score >= 20;
+  const eligibility = score !== null;
   if (!eligibility)
     return void res.json({ eligibility, code: 0, message: "not eligible" });
   if (typeof badge !== "string")
