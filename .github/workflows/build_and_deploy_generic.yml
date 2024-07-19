@@ -32,11 +32,6 @@ jobs:
     needs: [ref]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ needs.ref.outputs.refspec }}
-          fetch-depth: 0
       - name: Load secret
         id: op-load-secret
         uses: 1password/load-secrets-action@v1
@@ -46,21 +41,17 @@ jobs:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
           AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/service/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/service/AWS_SECRET_ACCESS_KEY
-      - name: Docker Build
-        uses: ./.github/actions/docker_build
+      - id: build_and_push_docker_image
+        uses: passportxyz/gh-workflows/.github/actions/build_and_push@main
         with:
-          docker_tag: ${{ needs.ref.outputs.docker_tag }}
-          ecr_repository_name: scroll-badge-service
-          dockerfile_name: Dockerfile
-          build_dir: ./
-      - name: Docker Push to Review
-        uses: ./.github/actions/docker_deploy
-        with:
+          refspec: ${{ needs.ref.outputs.refspec }}
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
           ecr_repository_name: scroll-badge-service
           aws_region: us-west-2
           aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          dockerfile_name: Dockerfile
+          build_dir: ./
 
   deploy_preview:
     name: Preview - Deploying AWS Infra
