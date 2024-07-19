@@ -1,4 +1,4 @@
-name: Library - Build and Deploy to Review
+name: Release workflow
 
 on:
   workflow_call:
