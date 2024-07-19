@@ -22,20 +22,6 @@ jobs:
         # which this workflow was triggered
         run: |
           echo "refspec=${{ inputs.commit || github.sha }}" >> $GITHUB_OUTPUT
-    outputs:
-      refspec: ${{ steps.ref.outputs.refspec }}
-
-  test_and_draft_release:
-    name: Test and Draft Release
-    needs: [ref]
-    permissions: write-all
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ needs.ref.outputs.refspec }}
-          fetch-depth: 0
 
       - name: Version
         # https://github.com/marketplace/actions/git-semantic-version
@@ -46,12 +32,26 @@ jobs:
           major_pattern: "(MAJOR)"
           minor_pattern: "(MINOR)"
 
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.ref.outputs.refspec }}
+          fetch-depth: 0
+
+      - name: Store Commit SHA
+        id: sha
+        shell: bash
+        run: |
+          echo "sha_short=$(git rev-parse --short ${{ steps.ref.outputs.refspec }})" >> $GITHUB_OUTPUT
+
     outputs:
       version_tag: ${{ steps.version.outputs.version_tag }}
+      docker_tag: ${{ steps.sha.outputs.sha_short }}
+      refspec: ${{ steps.ref.outputs.refspec }}
 
   docker:
     name: Docker
-    needs: [ref, test_and_draft_release]
+    needs: [ref]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -59,12 +59,6 @@ jobs:
         with:
           ref: ${{ needs.ref.outputs.refspec }}
           fetch-depth: 0
-
-      - name: Store Commit SHA
-        id: sha
-        shell: bash
-        run: |
-          echo "sha_short=$(git rev-parse --short ${{ needs.ref.outputs.refspec }})" >> $GITHUB_OUTPUT
       - name: Load secret
         id: op-load-secret
         uses: 1password/load-secrets-action@v1
@@ -77,21 +71,19 @@ jobs:
       - name: Docker Build
         uses: ./.github/actions/docker_build
         with:
-          docker_tag: ${{ steps.sha.outputs.sha_short }}
+          docker_tag: ${{ needs.ref.outputs.docker_tag }}
           ecr_repository_name: scroll-badge-service
           dockerfile_name: Dockerfile
           build_dir: ./
-      - name: Docker Push to Review
+      - name: Docker Push to Staging
         uses: ./.github/actions/docker_deploy
         with:
-          docker_tag: ${{ steps.sha.outputs.sha_short }}
+          docker_tag: ${{ needs.ref.outputs.docker_tag }}
           ecr_repository_name: scroll-badge-service
           aws_region: us-west-2
           aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
 
-    outputs:
-      docker_tag: ${{ steps.sha.outputs.sha_short }}
 
   deploy_preview:
     name: Preview - Deploying AWS Infra
@@ -121,7 +113,7 @@ jobs:
       - name: Deploy Review
         uses: ./.github/actions/deploy_to_aws
         with:
-          docker_tag: ${{ needs.docker.outputs.docker_tag }}
+          docker_tag: ${{ needs.ref.outputs.docker_tag }}
           stack_name: gitcoin/scroll-badge-service/review
           aws_region: us-west-2
           pulumi_command: preview
@@ -138,7 +130,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: staging
     steps:
-      - name: Approve Release to Review (check pulumi preview)
+      - name: Approve Release to Staging (check pulumi preview)
         run: |
           echo "Ref" ${{ needs.ref.outputs.refspec }}
           
@@ -170,8 +162,8 @@ jobs:
       - name: Deploy Review
         uses: ./.github/actions/deploy_to_aws
         with:
-          docker_tag: ${{ needs.docker.outputs.docker_tag }}
-          stack_name: gitcoin/scroll-badge-service/review
+          docker_tag: ${{ needs.ref.outputs.docker_tag }}
+          stack_name: gitcoin/scroll-badge-service/staging
           aws_region: us-west-2
           AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
