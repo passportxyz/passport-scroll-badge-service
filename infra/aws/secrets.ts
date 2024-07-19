@@ -19,6 +19,8 @@ type SyncSecretsAndGetRefsParams = GetEnvironmentVarsParams & {
 type EnvironmentVar = { name: string; value: string };
 type SecretRef = { name: string; valueFrom: string };
 
+// Given a 1P definition and a target secret ARN, sync the secrets to the target secret
+// object in AWS Secrets Manager and return the references to those secret values
 export const syncSecretsAndGetRefs = (
   params: SyncSecretsAndGetRefsParams
 ): SecretRef[] => {
@@ -51,6 +53,7 @@ export const syncSecretsAndGetRefs = (
   }));
 };
 
+// Given a 1P definition, return the environment variables
 export const getEnvironmentVars = (
   params: GetEnvironmentVarsParams
 ): EnvironmentVar[] => {
@@ -91,9 +94,8 @@ const getPasswordManagerData = ({
 };
 
 // Pulumi sorts alphabetically by name, so we want to match so that
-// the diff doesn't falsely show differences  because of the order
-//
-// This is used above to pre-sort. But if you add any to these arrays,
-// you'll want to sort the final array as well
+// the diff doesn't falsely show differences because of the order.
+// This is used above to pre-sort. But if you add to any of these
+// arrays, you'll want to sort the final array as well
 export const sortByName = (a: { name: string }, b: { name: string }) =>
   a.name.localeCompare(b.name);
