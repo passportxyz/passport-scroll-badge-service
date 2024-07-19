@@ -63,13 +63,18 @@ jobs:
         with:
           ref: ${{ needs.ref.outputs.refspec }}
           fetch-depth: 0
+      - name: Install 1Password CLI
+        uses: 1password/install-cli-action@v1
+      - name: Configure 1Password Service Account
+        uses: 1password/load-secrets-action/configure@v1
+        with:
+          service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
       - name: Load secret
         id: op-load-secret
         uses: 1password/load-secrets-action@v1
         with:
           export-env: true
         env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
           AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
           PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
@@ -112,13 +117,18 @@ jobs:
         with:
           ref: ${{ needs.ref.outputs.refspec }}
           fetch-depth: 0
+      - name: Install 1Password CLI
+        uses: 1password/install-cli-action@v1
+      - name: Configure 1Password Service Account
+        uses: 1password/load-secrets-action/configure@v1
+        with:
+          service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
       - name: Load secret
         id: op-load-secret
         uses: 1password/load-secrets-action@v1
         with:
           export-env: true
         env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
           AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
           PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
