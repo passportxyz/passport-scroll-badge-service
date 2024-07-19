@@ -1,4 +1,4 @@
-name: [LIB] Deploy only
+name: Library - Deploy only
 on:
   workflow_dispatch:
     inputs:
