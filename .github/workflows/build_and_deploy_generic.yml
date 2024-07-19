@@ -39,8 +39,8 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/service/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/service/AWS_SECRET_ACCESS_KEY
+          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
       - id: build_and_push_docker_image
         uses: passportxyz/gh-workflows/.github/actions/build_and_push@main
         with:
@@ -70,12 +70,12 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/service/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/service/AWS_SECRET_ACCESS_KEY
-          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/service/PULUMI_ACCESS_TOKEN
-          ROUTE_53_DOMAIN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-env/service/ROUTE_53_DOMAIN
-          SCROLL_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-env/service/SCROLL_SECRETS_ARN
-          VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-env/service/VC_SECRETS_ARN
+          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
+          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
+          ROUTE_53_DOMAIN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-env/ci/ROUTE_53_DOMAIN
+          SCROLL_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-env/ci/SCROLL_SECRETS_ARN
+          VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-env/ci/VC_SECRETS_ARN
       - name: Prepare to Deploy to AWS
         uses: ./.github/actions/prepare_deploy_to_aws
       - name: Deploy Review
@@ -119,12 +119,12 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/service/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/service/AWS_SECRET_ACCESS_KEY
-          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/service/PULUMI_ACCESS_TOKEN
-          ROUTE_53_DOMAIN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-env/service/ROUTE_53_DOMAIN
-          SCROLL_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-env/service/SCROLL_SECRETS_ARN
-          VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-env/service/VC_SECRETS_ARN
+          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
+          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
+          ROUTE_53_DOMAIN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-env/ci/ROUTE_53_DOMAIN
+          SCROLL_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-env/ci/SCROLL_SECRETS_ARN
+          VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-env/ci/VC_SECRETS_ARN
       - name: Prepare to Deploy to AWS
         uses: ./.github/actions/prepare_deploy_to_aws
       - name: Deploy Review
