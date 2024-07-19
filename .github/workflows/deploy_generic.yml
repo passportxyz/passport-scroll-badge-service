@@ -10,9 +10,6 @@ on:
         description: "Environment to deploy to"
         type: string
         required: true
-    secrets:
-      PULUMI_ACCESS_TOKEN:
-        required: true
 
 jobs:
   ref:
