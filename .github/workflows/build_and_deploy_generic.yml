@@ -18,13 +18,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: ref
-        uses: ./.github/actions/load_commit_ref
+        uses: passportxyz/gh-workflows/.github/actions/load_commit_ref
         with:
           commit: ${{ inputs.commit }}
 
     outputs:
       version_tag: ${{ steps.ref.outputs.version_tag }}
-      docker_tag: ${{ steps.ref.outputs.sha_short }}
+      docker_tag: ${{ steps.ref.outputs.docker_tag }}
       refspec: ${{ steps.ref.outputs.refspec }}
 
   docker:
