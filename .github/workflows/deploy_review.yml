@@ -127,7 +127,7 @@ jobs:
       - name: Deploy Review
         uses: ./.github/actions/deploy_to_aws
         with:
-          docker_tag: ${{ needs.docker.outputs.docker_tag }}
+          docker_tag: ${{ needs.ref.outputs.docker_tag }}
           stack_name: gitcoin/scroll-badge-service/review
           aws_region: us-west-2
           AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
