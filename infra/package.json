@@ -5,8 +5,9 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@pulumi/pulumi": "^3.113.0",
+    "@1password/op-js": "^0.1.13",
     "@pulumi/aws": "^6.0.2",
-    "@pulumi/awsx": "^1.0.5"
+    "@pulumi/awsx": "^1.0.5",
+    "@pulumi/pulumi": "^3.113.0"
   }
 }
