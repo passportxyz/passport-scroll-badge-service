@@ -14,18 +14,12 @@ inputs:
     type: string
     default: up
   pulumi_diff:
-    default: 'false'
+    default: "false"
   PULUMI_ACCESS_TOKEN:
     required: true
   AWS_ACCESS_KEY_ID:
     required: true
   AWS_SECRET_ACCESS_KEY:
-    required: true
-  ROUTE_53_DOMAIN:
-    required: true
-  SCROLL_SECRETS_ARN:
-    required: true
-  VC_SECRETS_ARN:
     required: true
 runs:
   using: composite
@@ -51,6 +45,3 @@ runs:
         AWS_SECRET_ACCESS_KEY: ${{ inputs.AWS_SECRET_ACCESS_KEY }}
         AWS_DEFAULT_REGION: ${{ inputs.aws_region }}
         SCROLL_BADGE_SERVICE_IMAGE_TAG: ${{ inputs.docker_tag }}
-        ROUTE_53_DOMAIN: ${{ inputs.ROUTE_53_DOMAIN }}
-        SCROLL_SECRETS_ARN: ${{ inputs.SCROLL_SECRETS_ARN }}
-        VC_SECRETS_ARN: ${{ inputs.VC_SECRETS_ARN }}
