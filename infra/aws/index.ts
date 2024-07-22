@@ -8,17 +8,21 @@ import {
   sortByName,
 } from "./secrets";
 
+const stack = pulumi.getStack();
+
 export const SCROLL_SECRETS_ARN = op.read.parse(
-  "op://DevOps/passport-scroll-badge-service-production-infra/service/SCROLL_SECRETS_ARN"
+  `op://DevOps/passport-scroll-badge-service-${stack}-infra/service/SCROLL_SECRETS_ARN`
 );
 export const ROUTE53_DOMAIN = op.read.parse(
-  "op://DevOps/passport-scroll-badge-service-production-infra/service/ROUTE53_DOMAIN"
+  `op://DevOps/passport-scroll-badge-service-${stack}-infra/service/ROUTE53_DOMAIN`
 );
 export const VC_SECRETS_ARN = op.read.parse(
-  "op://DevOps/passport-scroll-badge-service-production-infra/service/VC_SECRETS_ARN"
+  `op://DevOps/passport-scroll-badge-service-${stack}-infra/service/VC_SECRETS_ARN`
 );
 
-export const DOCKER_IMAGE_TAG = `${process.env.SCROLL_BADGE_SERVICE_IMAGE_TAG || ""}`;
+export const DOCKER_IMAGE_TAG = `${
+  process.env.SCROLL_BADGE_SERVICE_IMAGE_TAG || ""
+}`;
 
 const current = aws.getCallerIdentity({});
 const regionData = aws.getRegion({});
@@ -28,7 +32,6 @@ export const DOCKER_SCROLL_SERVICE_IMAGE = pulumi
     ([acc, region]) =>
       `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/scroll-badge-service:${DOCKER_IMAGE_TAG}`
   );
-const stack = pulumi.getStack();
 
 const defaultTags = {
   ManagedBy: "pulumi",
