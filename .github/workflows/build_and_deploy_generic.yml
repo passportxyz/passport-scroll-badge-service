@@ -96,6 +96,7 @@ jobs:
           ROUTE_53_DOMAIN: ${{ env.ROUTE_53_DOMAIN }}
           SCROLL_SECRETS_ARN: ${{ env.SCROLL_SECRETS_ARN }}
           VC_SECRETS_ARN: ${{ env.VC_SECRETS_ARN }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 
   deploy_confirm:
     name: Review Approval Pending
