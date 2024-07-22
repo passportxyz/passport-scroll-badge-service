@@ -9,13 +9,13 @@ import {
 } from "./secrets";
 
 export const SCROLL_SECRETS_ARN = op.read.parse(
-  "op://DevOps/passport-scroll-badge-service-production-infra/SCROLL_SECRETS_ARN"
+  "op://DevOps/passport-scroll-badge-service-production-infra/service/SCROLL_SECRETS_ARN"
 );
 export const ROUTE53_DOMAIN = op.read.parse(
-  "op://DevOps/passport-scroll-badge-service-production-infra/ROUTE53_DOMAIN"
+  "op://DevOps/passport-scroll-badge-service-production-infra/service/ROUTE53_DOMAIN"
 );
 export const VC_SECRETS_ARN = op.read.parse(
-  "op://DevOps/passport-scroll-badge-service-production-infra/VC_SECRETS_ARN"
+  "op://DevOps/passport-scroll-badge-service-production-infra/service/VC_SECRETS_ARN"
 );
 
 export const DOCKER_IMAGE_TAG = `${process.env.SCROLL_BADGE_SERVICE_IMAGE_TAG || ""}`;
