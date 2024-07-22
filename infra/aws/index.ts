@@ -11,13 +11,13 @@ import {
 const stack = pulumi.getStack();
 
 export const SCROLL_SECRETS_ARN = op.read.parse(
-  `op://DevOps/passport-scroll-badge-service-${stack}-infra/service/SCROLL_SECRETS_ARN`
+  `op://DevOps/passport-scroll-badge-service-${stack}-infra/ci/SCROLL_SECRETS_ARN`
 );
 export const ROUTE53_DOMAIN = op.read.parse(
-  `op://DevOps/passport-scroll-badge-service-${stack}-infra/service/ROUTE53_DOMAIN`
+  `op://DevOps/passport-scroll-badge-service-${stack}-infra/ci/ROUTE53_DOMAIN`
 );
 export const VC_SECRETS_ARN = op.read.parse(
-  `op://DevOps/passport-scroll-badge-service-${stack}-infra/service/VC_SECRETS_ARN`
+  `op://DevOps/passport-scroll-badge-service-${stack}-infra/ci/VC_SECRETS_ARN`
 );
 
 export const DOCKER_IMAGE_TAG = `${
