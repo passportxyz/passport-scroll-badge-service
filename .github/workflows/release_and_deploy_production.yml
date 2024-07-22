@@ -120,13 +120,14 @@ jobs:
           VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-staging-env/service/VC_SECRETS_ARN
       - name: Prepare to Deploy to AWS
         uses: ./.github/actions/prepare_deploy_to_aws
-      - name: Deploy Review
+      - name: Deploy Preview
         uses: ./.github/actions/deploy_to_aws
         with:
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
           stack_name: gitcoin/scroll-badge-service/staging
           aws_region: us-west-2
           pulumi_command: preview
+          pulumi_diff: "true"
           AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
@@ -169,7 +170,7 @@ jobs:
           VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-staging-env/service/VC_SECRETS_ARN
       - name: Prepare to Deploy to AWS
         uses: ./.github/actions/prepare_deploy_to_aws
-      - name: Deploy Review
+      - name: Deploy Preview
         uses: ./.github/actions/deploy_to_aws
         with:
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
@@ -207,13 +208,14 @@ jobs:
           VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-production-env/service/VC_SECRETS_ARN
       - name: Prepare to Deploy to AWS
         uses: ./.github/actions/prepare_deploy_to_aws
-      - name: Deploy Review
+      - name: Deploy Preview - 
         uses: ./.github/actions/deploy_to_aws
         with:
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
           stack_name: gitcoin/scroll-badge-service/production
           aws_region: us-west-2
           pulumi_command: preview
+          pulumi_diff: "true"
           AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
