@@ -24,7 +24,7 @@ jobs:
       refspec: ${{ steps.ref.outputs.refspec }}
 
   docker_staging:
-    name: Build and deploy docker image - staging
+    name: Build and push docker image - staging
     needs: [ref]
     runs-on: ubuntu-latest
     steps:
@@ -48,9 +48,29 @@ jobs:
           aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           dockerfile_name: Dockerfile
           build_dir: ./
+      - name: Load secret for production
+        id: op-load-secret-prod
+        uses: 1password/load-secrets-action@v1
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-production-secrets/service/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-production-secrets/service/AWS_SECRET_ACCESS_KEY
+      - id: push_to_production
+        uses: passportxyz/gh-workflows/.github/actions/push_docker_image@main
+        with:
+          refspec: ${{ needs.ref.outputs.refspec }}
+          docker_tag: ${{ needs.ref.outputs.docker_tag }}
+          ecr_repository_name: scroll-badge-service
+          aws_region: us-west-2
+          aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          dockerfile_name: Dockerfile
+          build_dir: ./
 
   docker_production:
-    name: Build and deploy docker image - production
+    name: Build and push docker image - production
     needs: [ref]
     runs-on: ubuntu-latest
     steps:
@@ -63,17 +83,17 @@ jobs:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
           AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-production-secrets/service/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-production-secrets/service/AWS_SECRET_ACCESS_KEY
-      - id: build_and_push_docker_image
-        uses: passportxyz/gh-workflows/.github/actions/build_and_push@main
-        with:
-          refspec: ${{ needs.ref.outputs.refspec }}
-          docker_tag: ${{ needs.ref.outputs.docker_tag }}
-          ecr_repository_name: scroll-badge-service
-          aws_region: us-west-2
-          aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          dockerfile_name: Dockerfile
-          build_dir: ./
+      # - id: build_and_push_docker_image
+      #   uses: passportxyz/gh-workflows/.github/actions/build_and_push@main
+      #   with:
+      #     refspec: ${{ needs.ref.outputs.refspec }}
+      #     docker_tag: ${{ needs.ref.outputs.docker_tag }}
+      #     ecr_repository_name: scroll-badge-service
+      #     aws_region: us-west-2
+      #     aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
+      #     aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+      #     dockerfile_name: Dockerfile
+      #     build_dir: ./
 
   deploy_preview_staging:
     name: Preview - Deploying AWS Infra to staging
@@ -115,7 +135,7 @@ jobs:
           VC_SECRETS_ARN: ${{ env.VC_SECRETS_ARN }}
 
   deploy_confirm_staging:
-    name: Review Approval Pending
+    name: Review Approval Pending for staging
     needs: [ref, deploy_preview_staging]
     runs-on: ubuntu-latest
     environment: staging
@@ -125,7 +145,7 @@ jobs:
           echo "Ref" ${{ needs.ref.outputs.refspec }}
 
   deploy_backends_staging:
-    name: Deploying AWS Infra
+    name: Deploying AWS Infra to staging
     needs: [ref, deploy_preview_staging, deploy_confirm_staging]
     runs-on: ubuntu-latest
     steps:
@@ -202,7 +222,7 @@ jobs:
           VC_SECRETS_ARN: ${{ env.VC_SECRETS_ARN }}
 
   deploy_confirm_production:
-    name: Review Approval Pending
+    name: Review Approval Pending for production
     needs: [ref, deploy_preview_production]
     runs-on: ubuntu-latest
     environment: production
@@ -212,7 +232,7 @@ jobs:
           echo "Ref" ${{ needs.ref.outputs.refspec }}
 
   deploy_backends_production:
-    name: Deploying AWS Infra
+    name: Deploying AWS Infra to production
     needs: [ref, deploy_confirm_production]
     runs-on: ubuntu-latest
     steps:

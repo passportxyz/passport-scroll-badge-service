@@ -28,7 +28,7 @@ jobs:
       refspec: ${{ steps.ref.outputs.refspec }}
 
   docker:
-    name: Build and deploy docker image
+    name: Build and push docker image
     needs: [ref]
     runs-on: ubuntu-latest
     steps:
