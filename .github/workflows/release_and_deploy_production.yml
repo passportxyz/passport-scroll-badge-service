@@ -122,6 +122,8 @@ jobs:
         uses: ./.github/actions/prepare_deploy_to_aws
       - name: Deploy Preview
         uses: ./.github/actions/deploy_to_aws
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
         with:
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
           stack_name: gitcoin/scroll-badge-service/staging
@@ -131,9 +133,6 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
-          ROUTE_53_DOMAIN: ${{ env.ROUTE_53_DOMAIN }}
-          SCROLL_SECRETS_ARN: ${{ env.SCROLL_SECRETS_ARN }}
-          VC_SECRETS_ARN: ${{ env.VC_SECRETS_ARN }}
 
   deploy_confirm_staging:
     name: Review Approval Pending for staging
@@ -208,7 +207,7 @@ jobs:
           VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-production-env/service/VC_SECRETS_ARN
       - name: Prepare to Deploy to AWS
         uses: ./.github/actions/prepare_deploy_to_aws
-      - name: Deploy Preview - 
+      - name: Deploy Preview -
         uses: ./.github/actions/deploy_to_aws
         with:
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
