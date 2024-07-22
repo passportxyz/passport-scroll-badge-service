@@ -21,6 +21,8 @@ inputs:
     required: true
   AWS_SECRET_ACCESS_KEY:
     required: true
+  OP_SERVICE_ACCOUNT_TOKEN:
+    required: true
 runs:
   using: composite
   steps:
@@ -45,3 +47,4 @@ runs:
         AWS_SECRET_ACCESS_KEY: ${{ inputs.AWS_SECRET_ACCESS_KEY }}
         AWS_DEFAULT_REGION: ${{ inputs.aws_region }}
         SCROLL_BADGE_SERVICE_IMAGE_TAG: ${{ inputs.docker_tag }}
+        OP_SERVICE_ACCOUNT_TOKEN: ${{ inputs.OP_SERVICE_ACCOUNT_TOKEN }}
