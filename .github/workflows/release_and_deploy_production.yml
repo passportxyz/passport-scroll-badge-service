@@ -23,222 +23,53 @@ jobs:
       docker_tag: ${{ steps.ref.outputs.docker_tag }}
       refspec: ${{ steps.ref.outputs.refspec }}
 
-  docker_build_and_push:
-    name: Build and push docker image - staging
+  create-draft-release:
+    name: Create Draft Release
+    runs-on: ubuntu-latest
     needs: [ref]
-    runs-on: ubuntu-latest
     steps:
-      - name: Load secret
-        id: op-load-secret
-        uses: 1password/load-secrets-action@v1
+      - name: Release
+        # https://github.com/ncipollo/release-action
+        uses: ncipollo/release-action@v1
         with:
-          export-env: true
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-staging-secrets/service/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-staging-secrets/service/AWS_SECRET_ACCESS_KEY
-      - id: build_and_push_docker_image
-        uses: passportxyz/gh-workflows/.github/actions/build_and_push@main
-        with:
-          refspec: ${{ needs.ref.outputs.refspec }}
-          docker_tag: ${{ needs.ref.outputs.docker_tag }}
-          ecr_repository_name: scroll-badge-service
-          aws_region: us-west-2
-          aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          dockerfile_name: Dockerfile
-          build_dir: ./
-      - name: Load secret for production
-        id: op-load-secret-prod
-        uses: 1password/load-secrets-action@v1
-        with:
-          export-env: true
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-production-secrets/service/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-production-secrets/service/AWS_SECRET_ACCESS_KEY
-      - id: push_to_production
-        uses: passportxyz/gh-workflows/.github/actions/push_docker_image@main
-        with:
-          refspec: ${{ needs.ref.outputs.refspec }}
-          docker_tag: ${{ needs.ref.outputs.docker_tag }}
-          ecr_repository_name: scroll-badge-service
-          aws_region: us-west-2
-          aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          dockerfile_name: Dockerfile
-          build_dir: ./
+          generateReleaseNotes: true
+          allowUpdates: true
+          token: ${{ secrets.github_token }}
+          tag: ${{ needs.ref.outputs.version_tag }}
+          commit: ${{ needs.ref.outputs.refspec }}
+          draft: true
 
-  deploy_preview_staging:
-    name: Preview - Deploying AWS Infra to staging
-    needs: [ref, docker_build_and_push]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ needs.ref.outputs.refspec }}
-          fetch-depth: 0
-      - name: Load secret
-        id: op-load-secret
-        uses: 1password/load-secrets-action@v1
-        with:
-          export-env: true
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-staging-secrets/service/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-staging-secrets/service/AWS_SECRET_ACCESS_KEY
-          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-staging-secrets/service/PULUMI_ACCESS_TOKEN
-          ROUTE_53_DOMAIN: op://DevOps/passport-scroll-badge-service-staging-env/service/ROUTE_53_DOMAIN
-          SCROLL_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-staging-env/service/SCROLL_SECRETS_ARN
-          VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-staging-env/service/VC_SECRETS_ARN
-      - name: Prepare to Deploy to AWS
-        uses: ./.github/actions/prepare_deploy_to_aws
-      - name: Deploy Preview
-        uses: ./.github/actions/deploy_to_aws
-        with:
-          docker_tag: ${{ needs.ref.outputs.docker_tag }}
-          stack_name: gitcoin/scroll-badge-service/staging
-          aws_region: us-west-2
-          pulumi_command: preview
-          pulumi_diff: "true"
-          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+  deploy-staging:
+    name: Deploy to Staging
+    needs: [create-draft-release]
+    uses: ./.github/workflows/build_and_deploy_generic.yml
+    with:
+      commit: ${{ inputs.commit }}
+      environment: staging
+    secrets: inherit
 
-  deploy_confirm_staging:
-    name: Review Approval Pending for staging
-    needs: [ref, deploy_preview_staging]
-    runs-on: ubuntu-latest
-    environment: staging
-    steps:
-      - name: Approve Release to Review (check pulumi preview)
-        run: |
-          echo "Ref" ${{ needs.ref.outputs.refspec }}
+  deploy-production:
+    name: Deploy to Production
+    needs: [deploy-staging]
+    uses: ./.github/workflows/build_and_deploy_generic.yml
+    with:
+      commit: ${{ inputs.commit }}
+      environment: production
+    secrets: inherit
 
-  deploy_backends_staging:
-    name: Deploying AWS Infra to staging
-    needs: [ref, deploy_preview_staging, deploy_confirm_staging]
+  release:
+    name: Release
+    needs: [ref, deploy-production]
+    permissions: write-all
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Release
+        # https://github.com/ncipollo/release-action
+        uses: ncipollo/release-action@v1
         with:
-          ref: ${{ needs.ref.outputs.refspec }}
-          fetch-depth: 0
-      - name: Load secret
-        id: op-load-secret
-        uses: 1password/load-secrets-action@v1
-        with:
-          export-env: true
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-staging-secrets/service/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-staging-secrets/service/AWS_SECRET_ACCESS_KEY
-          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-staging-secrets/service/PULUMI_ACCESS_TOKEN
-          ROUTE_53_DOMAIN: op://DevOps/passport-scroll-badge-service-staging-env/service/ROUTE_53_DOMAIN
-          SCROLL_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-staging-env/service/SCROLL_SECRETS_ARN
-          VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-staging-env/service/VC_SECRETS_ARN
-      - name: Prepare to Deploy to AWS
-        uses: ./.github/actions/prepare_deploy_to_aws
-      - name: Deploy Preview
-        uses: ./.github/actions/deploy_to_aws
-        with:
-          docker_tag: ${{ needs.ref.outputs.docker_tag }}
-          stack_name: gitcoin/scroll-badge-service/staging
-          aws_region: us-west-2
-          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
-          ROUTE_53_DOMAIN: ${{ env.ROUTE_53_DOMAIN }}
-          SCROLL_SECRETS_ARN: ${{ env.SCROLL_SECRETS_ARN }}
-          VC_SECRETS_ARN: ${{ env.VC_SECRETS_ARN }}
-
-  deploy_preview_production:
-    name: Preview - Deploying AWS Infra to production
-    needs: [ref, deploy_backends_staging]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ needs.ref.outputs.refspec }}
-          fetch-depth: 0
-      - name: Load secret
-        id: op-load-secret
-        uses: 1password/load-secrets-action@v1
-        with:
-          export-env: true
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-production-secrets/service/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-production-secrets/service/AWS_SECRET_ACCESS_KEY
-          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-production-secrets/service/PULUMI_ACCESS_TOKEN
-          ROUTE_53_DOMAIN: op://DevOps/passport-scroll-badge-service-production-env/service/ROUTE_53_DOMAIN
-          SCROLL_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-production-env/service/SCROLL_SECRETS_ARN
-          VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-production-env/service/VC_SECRETS_ARN
-      - name: Prepare to Deploy to AWS
-        uses: ./.github/actions/prepare_deploy_to_aws
-      - name: Deploy Preview -
-        uses: ./.github/actions/deploy_to_aws
-        with:
-          docker_tag: ${{ needs.ref.outputs.docker_tag }}
-          stack_name: gitcoin/scroll-badge-service/production
-          aws_region: us-west-2
-          pulumi_command: preview
-          pulumi_diff: "true"
-          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
-          ROUTE_53_DOMAIN: ${{ env.ROUTE_53_DOMAIN }}
-          SCROLL_SECRETS_ARN: ${{ env.SCROLL_SECRETS_ARN }}
-          VC_SECRETS_ARN: ${{ env.VC_SECRETS_ARN }}
-
-  deploy_confirm_production:
-    name: Review Approval Pending for production
-    needs: [ref, deploy_preview_production]
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - name: Approve Release to Review (check pulumi preview)
-        run: |
-          echo "Ref" ${{ needs.ref.outputs.refspec }}
-
-  deploy_backends_production:
-    name: Deploying AWS Infra to production
-    needs: [ref, deploy_confirm_production]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ needs.ref.outputs.refspec }}
-          fetch-depth: 0
-      - name: Load secret
-        id: op-load-secret
-        uses: 1password/load-secrets-action@v1
-        with:
-          export-env: true
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-production-secrets/service/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-production-secrets/service/AWS_SECRET_ACCESS_KEY
-          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-production-secrets/service/PULUMI_ACCESS_TOKEN
-          ROUTE_53_DOMAIN: op://DevOps/passport-scroll-badge-service-production-env/service/ROUTE_53_DOMAIN
-          SCROLL_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-production-env/service/SCROLL_SECRETS_ARN
-          VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-production-env/service/VC_SECRETS_ARN
-      - name: Prepare to Deploy to AWS
-        uses: ./.github/actions/prepare_deploy_to_aws
-      - name: Deploy Review
-        uses: ./.github/actions/deploy_to_aws
-        with:
-          docker_tag: ${{ needs.ref.outputs.docker_tag }}
-          stack_name: gitcoin/scroll-badge-service/production
-          aws_region: us-west-2
-          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
-          ROUTE_53_DOMAIN: ${{ env.ROUTE_53_DOMAIN }}
-          SCROLL_SECRETS_ARN: ${{ env.SCROLL_SECRETS_ARN }}
-          VC_SECRETS_ARN: ${{ env.VC_SECRETS_ARN }}
+          allowUpdates: true
+          omitBodyDuringUpdate: true
+          token: ${{ secrets.github_token }}
+          tag: ${{ needs.ref.outputs.version_tag }}
+          commit: ${{ needs.ref.outputs.refspec }}
+          draft: false
