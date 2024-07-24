@@ -2,17 +2,10 @@ import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as op from "@1password/op-js";
 
-import {
-  getEnvironmentVars,
-  syncSecretsAndGetRefs,
-  sortByName,
-} from "./secrets";
+import { secretsManager } from "infra-libs";
 
 const stack = pulumi.getStack();
 
-export const SCROLL_SECRETS_ARN = op.read.parse(
-  `op://DevOps/passport-scroll-badge-service-${stack}-env/ci/SCROLL_SECRETS_ARN`
-);
 export const ROUTE53_DOMAIN = op.read.parse(
   `op://DevOps/passport-scroll-badge-service-${stack}-env/ci/ROUTE53_DOMAIN`
 );
@@ -43,6 +36,14 @@ const logsRetention = Object({
   production: 30,
 });
 
+const scrollSecret = new aws.secretsmanager.Secret("scroll-secrets", {
+  name: `scroll-secrets`,
+  description: "Scroll Badge Service Secrets",
+  tags: {
+    ...defaultTags,
+  },
+});
+
 const coreInfraStack = new pulumi.StackReference(`gitcoin/core-infra/${stack}`);
 const snsAlertsTopicArn = coreInfraStack.getOutput("snsAlertsTopicArn");
 const passportInfraStack = new pulumi.StackReference(
@@ -66,23 +67,28 @@ const passwordManagerParams = {
   section: "service",
 };
 
-const scrollBadgeServiceSecretReferences = syncSecretsAndGetRefs({
-  ...passwordManagerParams,
-  targetSecretArn: SCROLL_SECRETS_ARN,
-});
-
-const secrets = [
-  ...scrollBadgeServiceSecretReferences,
+const scrollBadgeServiceSecretReferences = secretsManager.syncSecretsAndGetRefs(
   {
-    name: "SCROLL_BADGE_ATTESTATION_SIGNER_PRIVATE_KEY",
-    valueFrom: `${VC_SECRETS_ARN}:SCROLL_BADGE_ATTESTATION_SIGNER_PRIVATE_KEY::`,
-  },
-].sort(sortByName);
+    ...passwordManagerParams,
+    secretVersionName: "scroll-badge-service-secret-version",
+    targetSecret: scrollSecret,
+  }
+);
 
-const environment = getEnvironmentVars(passwordManagerParams);
+const secrets = scrollBadgeServiceSecretReferences.apply((refs) =>
+  [
+    ...refs,
+    {
+      name: "SCROLL_BADGE_ATTESTATION_SIGNER_PRIVATE_KEY",
+      valueFrom: `${VC_SECRETS_ARN}:SCROLL_BADGE_ATTESTATION_SIGNER_PRIVATE_KEY::`,
+    },
+  ].sort(secretsManager.sortByName)
+);
+
+const environment = secretsManager.getEnvironmentVars(passwordManagerParams);
 
 const serviceRole = new aws.iam.Role("scroll-badge-ecs-role", {
-  assumeRolePolicy: JSON.stringify({
+  assumeRolePolicy: pulumi.jsonStringify({
     Version: "2012-10-17",
     Statement: [
       {
@@ -98,13 +104,13 @@ const serviceRole = new aws.iam.Role("scroll-badge-ecs-role", {
   inlinePolicies: [
     {
       name: "allow_iam_secrets_access",
-      policy: JSON.stringify({
+      policy: pulumi.jsonStringify({
         Version: "2012-10-17",
         Statement: [
           {
             Action: ["secretsmanager:GetSecretValue"],
             Effect: "Allow",
-            Resource: [SCROLL_SECRETS_ARN, VC_SECRETS_ARN],
+            Resource: [scrollSecret.arn, VC_SECRETS_ARN],
           },
         ],
       }),
@@ -239,7 +245,7 @@ const albListenerRule = new aws.lb.ListenerRule(`scroll-badge-service-https`, {
 const service_data = DOCKER_SCROLL_SERVICE_IMAGE.apply((drk_image) => {
   const taskDefinition = new aws.ecs.TaskDefinition(`scroll-badge-service-td`, {
     family: `scroll-badge-service-td`,
-    containerDefinitions: JSON.stringify([
+    containerDefinitions: pulumi.jsonStringify([
       {
         name: "scroll-badge-service",
         image: drk_image,
