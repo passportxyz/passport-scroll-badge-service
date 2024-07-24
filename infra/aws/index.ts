@@ -20,9 +20,7 @@ export const VC_SECRETS_ARN = op.read.parse(
   `op://DevOps/passport-scroll-badge-service-${stack}-env/ci/VC_SECRETS_ARN`
 );
 
-export const DOCKER_IMAGE_TAG = `${
-  process.env.SCROLL_BADGE_SERVICE_IMAGE_TAG || ""
-}`;
+export const DOCKER_IMAGE_TAG = `${process.env.DOCKER_IMAGE_TAG || ""}`;
 
 const current = aws.getCallerIdentity({});
 const regionData = aws.getRegion({});
