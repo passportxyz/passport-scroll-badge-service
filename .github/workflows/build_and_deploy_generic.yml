@@ -135,6 +135,7 @@ jobs:
         with:
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
           stack_name: gitcoin/scroll-badge-service/${{ inputs.environment }}
+          pulumi_command: up
           aws_region: us-west-2
           AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
