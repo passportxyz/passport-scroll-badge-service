@@ -44,10 +44,12 @@ const scrollSecret = new aws.secretsmanager.Secret("scroll-secrets", {
   },
 });
 
-const coreInfraStack = new pulumi.StackReference(`gitcoin/core-infra/${stack}`);
+const coreInfraStack = new pulumi.StackReference(
+  `passportxyz/core-infra/${stack}`
+);
 const snsAlertsTopicArn = coreInfraStack.getOutput("snsAlertsTopicArn");
 const passportInfraStack = new pulumi.StackReference(
-  `gitcoin/passport/${stack}`
+  `passportxyz/passport/${stack}`
 );
 
 const passportClusterArn = passportInfraStack.getOutput("passportClusterArn");
