@@ -9,6 +9,9 @@ const stack = pulumi.getStack();
 export const ROUTE53_DOMAIN = op.read.parse(
   `op://DevOps/passport-scroll-badge-service-${stack}-env/ci/ROUTE53_DOMAIN`
 );
+export const ROUTE53_DOMAIN_XYZ = op.read.parse(
+  `op://DevOps/passport-scroll-badge-service-${stack}-env/ci/ROUTE53_DOMAIN_XYZ`
+);
 export const VC_SECRETS_ARN = op.read.parse(
   `op://DevOps/passport-scroll-badge-service-${stack}-env/ci/VC_SECRETS_ARN`
 );
@@ -48,6 +51,7 @@ const coreInfraStack = new pulumi.StackReference(
   `passportxyz/core-infra/${stack}`
 );
 const snsAlertsTopicArn = coreInfraStack.getOutput("snsAlertsTopicArn");
+
 const passportInfraStack = new pulumi.StackReference(
   `passportxyz/passport/${stack}`
 );
@@ -126,13 +130,16 @@ const serviceRole = new aws.iam.Role("scroll-badge-ecs-role", {
   },
 });
 
-const serviceLogGroup = new aws.cloudwatch.LogGroup("scroll-badge-service", {
-  name: "scroll-badge-service",
-  retentionInDays: logsRetention[stack],
-  tags: {
-    ...defaultTags,
-  },
-});
+const scroll_badge_service = new aws.cloudwatch.LogGroup(
+  "scroll-badge-service",
+  {
+    name: "scroll-badge-service",
+    retentionInDays: logsRetention[stack],
+    tags: {
+      ...defaultTags,
+    },
+  }
+);
 
 const vpcPrivateSubnets = coreInfraStack.getOutput("privateSubnetIds");
 
@@ -239,6 +246,38 @@ const albListenerRule = new aws.lb.ListenerRule(`scroll-badge-service-https`, {
     Name: `scroll-badge-service-https`,
   },
 });
+
+const xyzAlbListenerRule = new aws.lb.ListenerRule(
+  `scroll-badge-service-xyz-https`,
+  {
+    listenerArn: albHttpsListenerArn,
+    priority: 91, // Must be different from the existing rule (90)
+    actions: [
+      {
+        type: "forward",
+        forward: {
+          targetGroups: [{ arn: albTargetGroup.arn }], // Same target group as original
+        },
+      },
+    ],
+    conditions: [
+      {
+        hostHeader: {
+          values: [ROUTE53_DOMAIN_XYZ], // Replace with your new domain
+        },
+      },
+      {
+        pathPattern: {
+          values: ["/scroll/*"], // Same path pattern as original
+        },
+      },
+    ],
+    tags: {
+      ...defaultTags,
+      Name: `scroll-badge-service-xyz-https`,
+    },
+  }
+);
 
 //////////////////////////////////////////////////////////////
 // ECS Task & Service
