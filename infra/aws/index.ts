@@ -1,6 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as op from "@1password/op-js";
+import * as cloudflare from "@pulumi/cloudflare";
 
 import { secretsManager } from "infra-libs";
 
@@ -14,6 +15,14 @@ export const ROUTE53_DOMAIN_XYZ = op.read.parse(
 );
 export const VC_SECRETS_ARN = op.read.parse(
   `op://DevOps/passport-scroll-badge-service-${stack}-env/ci/VC_SECRETS_ARN`
+);
+
+const passportXyzHostedZoneId = op.read.parse(
+  `op://DevOps/passport-xyz-${stack}-env/ci/CLOUDFLARE_ZONE_ID`
+);
+
+const cloudflareZoneId = op.read.parse(
+  `op://DevOps/passport-xyz-${stack}-env/ci/CLOUDFLARE_ZONE_ID`
 );
 
 export const DOCKER_IMAGE_TAG = `${process.env.DOCKER_IMAGE_TAG || ""}`;
@@ -130,6 +139,30 @@ const serviceRole = new aws.iam.Role("scroll-badge-ecs-role", {
   },
 });
 
+const albDnsName = coreInfraStack.getOutput("coreAlbDns");
+
+const serviceRecordXyz = new aws.route53.Record("passport-xyz-record", {
+  name: "scroll",
+  zoneId: passportXyzHostedZoneId,
+  type: "CNAME",
+  ttl: 300,
+  records: [albDnsName],
+});
+
+// CloudFlare Record
+
+const cloudflareIamRecord =
+  stack === "production"
+    ? new cloudflare.Record(`scroll-passport-xyz-record`, {
+        name: `scroll`,
+        zoneId: cloudflareZoneId,
+        type: "CNAME",
+        value: albDnsName,
+        allowOverwrite: true,
+        comment: `Points to Scroll service running on AWS ECS task`,
+      })
+    : "";
+
 const scroll_badge_service = new aws.cloudwatch.LogGroup(
   "scroll-badge-service",
   {
@@ -232,7 +265,7 @@ const albListenerRule = new aws.lb.ListenerRule(`scroll-badge-service-https`, {
   conditions: [
     {
       hostHeader: {
-        values: [ROUTE53_DOMAIN],
+        values: [ROUTE53_DOMAIN, ROUTE53_DOMAIN_XYZ],
       },
     },
     {
@@ -246,38 +279,6 @@ const albListenerRule = new aws.lb.ListenerRule(`scroll-badge-service-https`, {
     Name: `scroll-badge-service-https`,
   },
 });
-
-const xyzAlbListenerRule = new aws.lb.ListenerRule(
-  `scroll-badge-service-xyz-https`,
-  {
-    listenerArn: albHttpsListenerArn,
-    priority: 91, // Must be different from the existing rule (90)
-    actions: [
-      {
-        type: "forward",
-        forward: {
-          targetGroups: [{ arn: albTargetGroup.arn }], // Same target group as original
-        },
-      },
-    ],
-    conditions: [
-      {
-        hostHeader: {
-          values: [ROUTE53_DOMAIN_XYZ], // Replace with your new domain
-        },
-      },
-      {
-        pathPattern: {
-          values: ["/scroll/*"], // Same path pattern as original
-        },
-      },
-    ],
-    tags: {
-      ...defaultTags,
-      Name: `scroll-badge-service-xyz-https`,
-    },
-  }
-);
 
 //////////////////////////////////////////////////////////////
 // ECS Task & Service
