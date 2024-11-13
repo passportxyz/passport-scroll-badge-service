@@ -17,14 +17,6 @@ export const VC_SECRETS_ARN = op.read.parse(
   `op://DevOps/passport-scroll-badge-service-${stack}-env/ci/VC_SECRETS_ARN`
 );
 
-const passportXyzHostedZoneId = op.read.parse(
-  `op://DevOps/passport-xyz-${stack}-env/ci/CLOUDFLARE_ZONE_ID`
-);
-
-const cloudflareZoneId = op.read.parse(
-  `op://DevOps/passport-xyz-${stack}-env/ci/CLOUDFLARE_ZONE_ID`
-);
-
 export const DOCKER_IMAGE_TAG = `${process.env.DOCKER_IMAGE_TAG || ""}`;
 
 const current = aws.getCallerIdentity({});
@@ -140,6 +132,9 @@ const serviceRole = new aws.iam.Role("scroll-badge-ecs-role", {
 });
 
 const albDnsName = coreInfraStack.getOutput("coreAlbDns");
+const passportXyzHostedZoneId = coreInfraStack.getOutput(
+  "passportXyzHostedZoneId"
+);
 
 const serviceRecordXyz = new aws.route53.Record("passport-xyz-record", {
   name: "scroll",
@@ -155,7 +150,7 @@ const cloudflareIamRecord =
   stack === "production"
     ? new cloudflare.Record(`scroll-passport-xyz-record`, {
         name: `scroll`,
-        zoneId: cloudflareZoneId,
+        zoneId: passportXyzHostedZoneId,
         type: "CNAME",
         value: albDnsName,
         allowOverwrite: true,
@@ -265,7 +260,7 @@ const albListenerRule = new aws.lb.ListenerRule(`scroll-badge-service-https`, {
   conditions: [
     {
       hostHeader: {
-        values: [ROUTE53_DOMAIN, ROUTE53_DOMAIN_XYZ],
+        values: [ROUTE53_DOMAIN],
       },
     },
     {
@@ -279,6 +274,38 @@ const albListenerRule = new aws.lb.ListenerRule(`scroll-badge-service-https`, {
     Name: `scroll-badge-service-https`,
   },
 });
+
+const albListenerRuleScrollSubdomain = new aws.lb.ListenerRule(
+  `scroll-badge-service-https-subdomain`,
+  {
+    listenerArn: albHttpsListenerArn,
+    priority: 91,
+    actions: [
+      {
+        type: "forward",
+        forward: {
+          targetGroups: [{ arn: albTargetGroup.arn }],
+        },
+      },
+    ],
+    conditions: [
+      {
+        hostHeader: {
+          values: [ROUTE53_DOMAIN_XYZ],
+        },
+      },
+      {
+        pathPattern: {
+          values: ["/*"],
+        },
+      },
+    ],
+    tags: {
+      ...defaultTags,
+      Name: `scroll-badge-service-https-subdomain`,
+    },
+  }
+);
 
 //////////////////////////////////////////////////////////////
 // ECS Task & Service

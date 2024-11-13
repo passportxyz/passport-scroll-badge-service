@@ -250,12 +250,15 @@ app.get("/scroll/health", (req: Request, res: Response) => {
   res.status(200).json({ status: "Healthy" });
 });
 
+app.get("/health", (req: Request, res: Response) => {
+  res.status(200).json({ status: "Healthy" });
+});
+
 app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);
 });
 
-// Check Eligibility For Minting Badge
-app.get("/scroll/check", async (req: Request, res: Response): Promise<void> => {
+const check = async (req: Request, res: Response) => {
   const { badge, recipient } = req.query;
 
   if (
@@ -287,10 +290,13 @@ app.get("/scroll/check", async (req: Request, res: Response): Promise<void> => {
     console.error("Error verifying attestation:", error);
     return void errorRes(res, "Error verifying attestation", 500);
   }
-});
+};
 
-// Claim Badge
-app.get("/scroll/claim", async (req: Request, res: Response): Promise<void> => {
+// Check Eligibility For Minting Badge
+app.get("/scroll/check", check);
+app.get("/check", check);
+
+const claim = async (req: Request, res: Response): Promise<void> => {
   // See example implementation here: https://github.com/scroll-tech/canvas-contracts/blob/master/examples/src/attest-server.js
   const { badge, recipient } = req.query;
 
@@ -378,4 +384,8 @@ app.get("/scroll/claim", async (req: Request, res: Response): Promise<void> => {
     console.error("Error claiming badge:", e);
     return void res.json({ code: 0, message: String(e) });
   }
-});
+};
+
+// Claim Badge
+app.get("/scroll/claim", claim);
+app.get("/claim", claim);
