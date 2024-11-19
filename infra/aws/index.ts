@@ -1,6 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as op from "@1password/op-js";
+import * as cloudflare from "@pulumi/cloudflare";
 
 import { secretsManager } from "infra-libs";
 
@@ -8,6 +9,9 @@ const stack = pulumi.getStack();
 
 export const ROUTE53_DOMAIN = op.read.parse(
   `op://DevOps/passport-scroll-badge-service-${stack}-env/ci/ROUTE53_DOMAIN`
+);
+export const ROUTE53_DOMAIN_XYZ = op.read.parse(
+  `op://DevOps/passport-scroll-badge-service-${stack}-env/ci/ROUTE53_DOMAIN_XYZ`
 );
 export const VC_SECRETS_ARN = op.read.parse(
   `op://DevOps/passport-scroll-badge-service-${stack}-env/ci/VC_SECRETS_ARN`
@@ -48,6 +52,7 @@ const coreInfraStack = new pulumi.StackReference(
   `passportxyz/core-infra/${stack}`
 );
 const snsAlertsTopicArn = coreInfraStack.getOutput("snsAlertsTopicArn");
+
 const passportInfraStack = new pulumi.StackReference(
   `passportxyz/passport/${stack}`
 );
@@ -126,13 +131,43 @@ const serviceRole = new aws.iam.Role("scroll-badge-ecs-role", {
   },
 });
 
-const serviceLogGroup = new aws.cloudwatch.LogGroup("scroll-badge-service", {
-  name: "scroll-badge-service",
-  retentionInDays: logsRetention[stack],
-  tags: {
-    ...defaultTags,
-  },
+const albDnsName = coreInfraStack.getOutput("coreAlbDns");
+const passportXyzHostedZoneId = coreInfraStack.getOutput(
+  "passportXyzHostedZoneId"
+);
+
+const serviceRecordXyz = new aws.route53.Record("passport-xyz-record", {
+  name: "scroll",
+  zoneId: passportXyzHostedZoneId,
+  type: "CNAME",
+  ttl: 300,
+  records: [albDnsName],
 });
+
+// CloudFlare Record
+
+const cloudflareIamRecord =
+  stack === "production"
+    ? new cloudflare.Record(`scroll-passport-xyz-record`, {
+        name: `scroll`,
+        zoneId: passportXyzHostedZoneId,
+        type: "CNAME",
+        value: albDnsName,
+        allowOverwrite: true,
+        comment: `Points to Scroll service running on AWS ECS task`,
+      })
+    : "";
+
+const scroll_badge_service = new aws.cloudwatch.LogGroup(
+  "scroll-badge-service",
+  {
+    name: "scroll-badge-service",
+    retentionInDays: logsRetention[stack],
+    tags: {
+      ...defaultTags,
+    },
+  }
+);
 
 const vpcPrivateSubnets = coreInfraStack.getOutput("privateSubnetIds");
 
@@ -239,6 +274,38 @@ const albListenerRule = new aws.lb.ListenerRule(`scroll-badge-service-https`, {
     Name: `scroll-badge-service-https`,
   },
 });
+
+const albListenerRuleScrollSubdomain = new aws.lb.ListenerRule(
+  `scroll-badge-service-https-subdomain`,
+  {
+    listenerArn: albHttpsListenerArn,
+    priority: 91,
+    actions: [
+      {
+        type: "forward",
+        forward: {
+          targetGroups: [{ arn: albTargetGroup.arn }],
+        },
+      },
+    ],
+    conditions: [
+      {
+        hostHeader: {
+          values: [ROUTE53_DOMAIN_XYZ],
+        },
+      },
+      {
+        pathPattern: {
+          values: ["/*"],
+        },
+      },
+    ],
+    tags: {
+      ...defaultTags,
+      Name: `scroll-badge-service-https-subdomain`,
+    },
+  }
+);
 
 //////////////////////////////////////////////////////////////
 // ECS Task & Service
