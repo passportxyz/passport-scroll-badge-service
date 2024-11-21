@@ -78,6 +78,7 @@ jobs:
           AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
           PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
+          CLOUDFLARE_API_TOKEN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/CLOUDFLARE_API_TOKEN
       - name: Prepare to Deploy to AWS
         uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@main
       - name: Deploy Preview
@@ -91,6 +92,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 
   deploy_confirm:
@@ -128,6 +130,7 @@ jobs:
           AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
           PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
+          CLOUDFLARE_API_TOKEN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/CLOUDFLARE_API_TOKEN
       - name: Prepare to Deploy to AWS
         uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@main
       - name: Deploy Review
@@ -140,4 +143,5 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
