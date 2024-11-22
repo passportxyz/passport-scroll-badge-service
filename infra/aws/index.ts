@@ -10,9 +10,7 @@ const stack = pulumi.getStack();
 export const ROUTE53_DOMAIN = op.read.parse(
   `op://DevOps/passport-scroll-badge-service-${stack}-env/ci/ROUTE53_DOMAIN`
 );
-export const ROUTE53_DOMAIN_XYZ = op.read.parse(
-  `op://DevOps/passport-scroll-badge-service-${stack}-env/ci/ROUTE53_DOMAIN_XYZ`
-);
+
 export const VC_SECRETS_ARN = op.read.parse(
   `op://DevOps/passport-scroll-badge-service-${stack}-env/ci/VC_SECRETS_ARN`
 );
@@ -68,6 +66,10 @@ export const passportClusterNameArn = passportClusterArn;
 const vpcId = coreInfraStack.getOutput("vpcId");
 
 const albHttpsListenerArn = coreInfraStack.getOutput("coreAlbHttpsListenerArn");
+
+export const passportXyzDomainName = coreInfraStack.getOutput(
+  "passportXyzDomainName"
+);
 
 const passwordManagerParams = {
   vault: "DevOps",
@@ -147,7 +149,6 @@ const serviceRecordXyz = new aws.route53.Record("passport-xyz-record", {
 });
 
 // CloudFlare Record
-
 const cloudflareIamRecord =
   stack === "production"
     ? new cloudflare.Record(`scroll-passport-xyz-record`, {
@@ -262,7 +263,8 @@ const albListenerRule = new aws.lb.ListenerRule(`scroll-badge-service-https`, {
   conditions: [
     {
       hostHeader: {
-        values: [ROUTE53_DOMAIN],
+        // this will be deprecated when the gitcoin.co domain will be dropped
+        values: [ROUTE53_DOMAIN], // passport-iam.gitcoin.co & iam.<stage>.passport.gitcoin.co
       },
     },
     {
@@ -293,7 +295,18 @@ const albListenerRuleScrollSubdomain = new aws.lb.ListenerRule(
     conditions: [
       {
         hostHeader: {
-          values: [ROUTE53_DOMAIN_XYZ],
+          values:
+            stack === "production"
+              ? [
+                  passportXyzDomainName.apply((domain) => `iam.${domain}`),
+                  `iam.passport.xyz`,
+                  passportXyzDomainName.apply((domain) => `scroll.${domain}`),
+                  `scroll.passport.xyz`,
+                ]
+              : [
+                  passportXyzDomainName.apply((domain) => `iam.${domain}`),
+                  passportXyzDomainName.apply((domain) => `scroll.${domain}`),
+                ],
         },
       },
       {
