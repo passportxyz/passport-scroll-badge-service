@@ -16,7 +16,9 @@ export const ROUTE53_DOMAIN_XYZ = op.read.parse(
 export const VC_SECRETS_ARN = op.read.parse(
   `op://DevOps/passport-scroll-badge-service-${stack}-env/ci/VC_SECRETS_ARN`
 );
-
+const CLOUDFLARE_ZONE_ID = op.read.parse(
+  `op://DevOps/passport-scroll-badge-service-${stack}-env/ci/CLOUDFLARE_ZONE_ID`
+);
 export const DOCKER_IMAGE_TAG = `${process.env.DOCKER_IMAGE_TAG || ""}`;
 
 const current = aws.getCallerIdentity({});
@@ -150,7 +152,7 @@ const cloudflareIamRecord =
   stack === "production"
     ? new cloudflare.Record(`scroll-passport-xyz-record`, {
         name: `scroll`,
-        zoneId: passportXyzHostedZoneId,
+        zoneId: CLOUDFLARE_ZONE_ID,
         type: "CNAME",
         value: albDnsName,
         allowOverwrite: true,
