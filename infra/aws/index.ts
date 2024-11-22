@@ -311,7 +311,7 @@ const albListenerRuleScrollSubdomain = new aws.lb.ListenerRule(
       },
       {
         pathPattern: {
-          values: ["/*"],
+          values: ["/scroll/*"],
         },
       },
     ],
