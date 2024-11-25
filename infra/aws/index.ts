@@ -279,6 +279,7 @@ const albListenerRule = new aws.lb.ListenerRule(`scroll-badge-service-https`, {
   },
 });
 
+// iam.passport.xyz/scroll/* & iam.<stage>.passport.xyz/scroll/*
 const albListenerRuleScrollSubdomain = new aws.lb.ListenerRule(
   `scroll-badge-service-https-subdomain`,
   {
@@ -321,6 +322,42 @@ const albListenerRuleScrollSubdomain = new aws.lb.ListenerRule(
     },
   }
 );
+
+// scroll.passport.xyz & scroll.<stage>.passport.xyz
+new aws.lb.ListenerRule(`scroll-badge-service-https-passportxyz`, {
+  listenerArn: albHttpsListenerArn,
+  priority: 92,
+  actions: [
+    {
+      type: "forward",
+      forward: {
+        targetGroups: [{ arn: albTargetGroup.arn }],
+      },
+    },
+  ],
+  conditions: [
+    {
+      hostHeader: {
+        values:
+          stack === "production"
+            ? [
+                passportXyzDomainName.apply((domain) => `scroll.${domain}`),
+                `scroll.passport.xyz`,
+              ]
+            : [passportXyzDomainName.apply((domain) => `scroll.${domain}`)],
+      },
+    },
+    {
+      pathPattern: {
+        values: ["*"],
+      },
+    },
+  ],
+  tags: {
+    ...defaultTags,
+    Name: `scroll-badge-service-https-passportxyz`,
+  },
+});
 
 //////////////////////////////////////////////////////////////
 // ECS Task & Service
