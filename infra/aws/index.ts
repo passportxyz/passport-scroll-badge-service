@@ -301,13 +301,8 @@ const albListenerRuleScrollSubdomain = new aws.lb.ListenerRule(
               ? [
                   passportXyzDomainName.apply((domain) => `iam.${domain}`),
                   `iam.passport.xyz`,
-                  passportXyzDomainName.apply((domain) => `scroll.${domain}`),
-                  `scroll.passport.xyz`,
                 ]
-              : [
-                  passportXyzDomainName.apply((domain) => `iam.${domain}`),
-                  passportXyzDomainName.apply((domain) => `scroll.${domain}`),
-                ],
+              : [passportXyzDomainName.apply((domain) => `iam.${domain}`)],
         },
       },
       {
